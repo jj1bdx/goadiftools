@@ -4,6 +4,7 @@ Go tools for ADIF ADI files
 
 ## Tools
 
+* goadifdelf: delete specified ADIF fields from the input ADIF records
 * goadifdump: skeleton for further writing the code
 * goadifstat: obtain QSO statistics
 * goadiftime: sort and filter QSOs by QSO\_DATE/TIME\_ON fields
