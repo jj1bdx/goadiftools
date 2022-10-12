@@ -59,7 +59,7 @@ func main() {
 		fmt.Fprintln(flag.CommandLine.Output(),
 			"goadiftime: sort and filter ADIF file by time")
 		fmt.Fprintf(flag.CommandLine.Output(),
-			"Usage: %s  [-f infile] [-o outfile] [-r]\n"+
+			"Usage: %s  [-f infile] [-o outfile] [-r] "+
 				"[-starttime RFC3339-time] [-endtime RFC3339-time]\n",
 			execname)
 		flag.PrintDefaults()
