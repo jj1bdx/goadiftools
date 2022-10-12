@@ -83,7 +83,7 @@ func main() {
 				"  the output is sorted by time increasing order\n" +
 				"  when with -r option or -r=true:\n" +
 				"  the output is sorted by time decreasing order\n"
-		fmt.Fprintf(flag.CommandLine.Output(), details)
+		fmt.Fprint(flag.CommandLine.Output(), details)
 	}
 
 	records := []recordWithTime{}
