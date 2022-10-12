@@ -144,59 +144,8 @@ func updateStatMaps(record adifparser.ADIFRecord) {
 	}
 }
 
-func main() {
-	var infile = flag.String("f", "", "input file (stdin if none)")
-	var outfile = flag.String("o", "", "output file (stdout if none)")
-	var query = flag.String("q", "", "query type")
-	var fp *os.File
-	var err error
-
-	flag.Usage = func() {
-		execname := os.Args[0]
-		fmt.Fprintln(flag.CommandLine.Output(),
-			"goadifstat: check statistics of ADIF ADI files")
-		fmt.Fprintf(flag.CommandLine.Output(),
-			"Usage: %s [-f infile] [-o outfile] -q query type\n", execname)
-		fmt.Fprintln(flag.CommandLine.Output(),
-			"Valid query types: bands, country, dxcc, gridsquare, modes, nqso, submodes")
-		flag.PrintDefaults()
-	}
-
-	flag.Parse()
-
-	if *infile == "" {
-		fp = os.Stdin
-	} else {
-		fp, err = os.Open(*infile)
-		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
-		}
-	}
-
-	var writefp *os.File
-	var writer *bufio.Writer
-	if *outfile != "" {
-		writefp, err = os.Create(*outfile)
-		writer = bufio.NewWriter(writefp)
-	} else {
-		writefp = nil
-		writer = bufio.NewWriter(os.Stdout)
-	}
-
-	initStatMaps()
-
-	reader := adifparser.NewADIFReader(fp)
-	for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
-		if err != nil {
-			if err != io.EOF {
-				fmt.Fprint(os.Stderr, err)
-			}
-			break // when io.EOF break the loop!
-		}
-		updateStatMaps(record)
-	}
-
+func statOutput(query *string, writer *bufio.Writer,
+	reader adifparser.ADIFReader) {
 	// Calculate and output the stats
 	switch {
 	case *query == "bands":
@@ -262,6 +211,62 @@ func main() {
 	default:
 		flag.Usage()
 	}
+}
+
+func main() {
+	var infile = flag.String("f", "", "input file (stdin if none)")
+	var outfile = flag.String("o", "", "output file (stdout if none)")
+	var query = flag.String("q", "", "query type")
+	var fp *os.File
+	var err error
+
+	flag.Usage = func() {
+		execname := os.Args[0]
+		fmt.Fprintln(flag.CommandLine.Output(),
+			"goadifstat: check statistics of ADIF ADI files")
+		fmt.Fprintf(flag.CommandLine.Output(),
+			"Usage: %s [-f infile] [-o outfile] -q query type\n", execname)
+		fmt.Fprintln(flag.CommandLine.Output(),
+			"Valid query types: bands, country, dxcc, gridsquare, modes, nqso, submodes")
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+
+	if *infile == "" {
+		fp = os.Stdin
+	} else {
+		fp, err = os.Open(*infile)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+			return
+		}
+	}
+
+	var writefp *os.File
+	var writer *bufio.Writer
+	if *outfile != "" {
+		writefp, err = os.Create(*outfile)
+		writer = bufio.NewWriter(writefp)
+	} else {
+		writefp = nil
+		writer = bufio.NewWriter(os.Stdout)
+	}
+
+	initStatMaps()
+
+	reader := adifparser.NewADIFReader(fp)
+	for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
+		if err != nil {
+			if err != io.EOF {
+				fmt.Fprint(os.Stderr, err)
+			}
+			break // when io.EOF break the loop!
+		}
+		updateStatMaps(record)
+	}
+
+	statOutput(query, writer, reader)
 
 	// Flush and close output here
 	writer.Flush()
