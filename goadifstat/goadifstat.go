@@ -1,6 +1,6 @@
 // goadifstat: check statistics of ADIF ADI files
 // by Kenji Rikitake, JJ1BDX
-// Usage: goadifstat [-f infile] [-o outfile] [-q query type]
+// Usage: goadifstat [-f infile] [-o outfile] -q query type
 // Valid query types: bands, country, dxcc, gridsquare, modes, nqso, submodes
 
 package main
@@ -150,6 +150,17 @@ func main() {
 	var query = flag.String("q", "", "query type")
 	var fp *os.File
 	var err error
+
+	flag.Usage = func() {
+                execname := os.Args[0]
+                fmt.Fprintln(flag.CommandLine.Output(),
+                        "goadifstat: check statistics of ADIF ADI files")
+                fmt.Fprintf(flag.CommandLine.Output(),
+                        "Usage: %s [-f infile] [-o outfile] -q query type\n", execname)
+                fmt.Fprintln(flag.CommandLine.Output(),
+                        "Valid query types: bands, country, dxcc, gridsquare, modes, nqso, submodes")
+                flag.PrintDefaults()
+        }
 
 	flag.Parse()
 
