@@ -152,15 +152,15 @@ func main() {
 	var err error
 
 	flag.Usage = func() {
-                execname := os.Args[0]
-                fmt.Fprintln(flag.CommandLine.Output(),
-                        "goadifstat: check statistics of ADIF ADI files")
-                fmt.Fprintf(flag.CommandLine.Output(),
-                        "Usage: %s [-f infile] [-o outfile] -q query type\n", execname)
-                fmt.Fprintln(flag.CommandLine.Output(),
-                        "Valid query types: bands, country, dxcc, gridsquare, modes, nqso, submodes")
-                flag.PrintDefaults()
-        }
+		execname := os.Args[0]
+		fmt.Fprintln(flag.CommandLine.Output(),
+			"goadifstat: check statistics of ADIF ADI files")
+		fmt.Fprintf(flag.CommandLine.Output(),
+			"Usage: %s [-f infile] [-o outfile] -q query type\n", execname)
+		fmt.Fprintln(flag.CommandLine.Output(),
+			"Valid query types: bands, country, dxcc, gridsquare, modes, nqso, submodes")
+		flag.PrintDefaults()
+	}
 
 	flag.Parse()
 
@@ -260,10 +260,7 @@ func main() {
 	case *query == "nqso":
 		fmt.Fprintln(writer, reader.RecordCount())
 	default:
-		fmt.Fprintln(os.Stderr, "Not a valid query type")
-		fmt.Fprintln(os.Stderr, "Valid types:")
-		fmt.Fprintln(os.Stderr, "  bands, country, dxcc, gridsquare,")
-		fmt.Fprintln(os.Stderr, "  modes, nqso, submodes")
+		flag.Usage()
 	}
 
 	// Flush and close output here
