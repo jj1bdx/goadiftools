@@ -54,6 +54,38 @@ func main() {
 	var fp *os.File
 	var err error
 
+	flag.Usage = func() {
+		execname := os.Args[0]
+		fmt.Fprintln(flag.CommandLine.Output(),
+			"goadiftime: sort and filter ADIF file by time")
+		fmt.Fprintf(flag.CommandLine.Output(),
+			"Usage: %s  [-f infile] [-o outfile] [-r]\n"+
+				"[-starttime RFC3339-time] [-endtime RFC3339-time]\n",
+			execname)
+		flag.PrintDefaults()
+		details :=
+			"RFC3339-time example: 2022-10-11T12:33:45Z\n" +
+				"Time of ADIF record determined by: qso_date and time_on\n" +
+				"\n" +
+				"Time filtering conditions:\n" +
+				"if starttime and endtime both are specified:\n" +
+				"the condition is: starttime <= record time <= endtime\n" +
+				"if only starttime is specified:\n" +
+				"the condition is: starttime <= record time\n" +
+				"if only endtime is specified:\n" +
+				"the condition is: record time <= endtime\n" +
+				"\n" +
+				"Sorting conditions:\n" +
+				"when with -n option or -n=true:\n" +
+				"  the output is not sorted\n" +
+				"when without -n option or -n=false (default):\n" +
+				"  when without -r option or -r=false (default):\n" +
+				"  the output is sorted by time increasing order\n" +
+				"  when with -r option or -r=true:\n" +
+				"  the output is sorted by time decreasing order\n"
+		fmt.Fprintf(flag.CommandLine.Output(), details)
+	}
+
 	records := []recordWithTime{}
 
 	flag.Parse()
