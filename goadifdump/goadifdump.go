@@ -68,6 +68,8 @@ func main() {
 
 	}
 
+	// Flush and close the output
+	writer.Flush()
 	if writefp != os.Stdout {
 		writefp.Close()
 	}
