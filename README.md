@@ -15,6 +15,10 @@ go mod init github.com/jj1bdx/goadiftools
 go mod tidy
 ```
 
+## How to compile
+
+Do `./buildall.sh`
+
 ## Required library
 
 https://github.com/jj1bdx/adifparser
