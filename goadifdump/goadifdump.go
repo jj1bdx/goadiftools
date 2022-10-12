@@ -25,6 +25,15 @@ func main() {
 	var fp *os.File
 	var err error
 
+	flag.Usage = func() {
+		execname := os.Args[0]
+		fmt.Fprintln(flag.CommandLine.Output(),
+			"goadifdump: reformat preserve all ADIF file fields without deduping")
+		fmt.Fprintf(flag.CommandLine.Output(),
+			"Usage: %s [-f infile] [-o outfile]\n", execname)
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	if *infile == "" {
