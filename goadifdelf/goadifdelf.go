@@ -20,6 +20,15 @@ func main() {
 	var fp *os.File
 	var err error
 
+	flag.Usage = func() {
+		execname := os.Args[0]
+		fmt.Fprintln(flag.CommandLine.Output(),
+			"goadifdelf: remove specified ADIF fields")
+		fmt.Fprintf(flag.CommandLine.Output(),
+			"Usage: %s [-f infile] [-o outfile] field_names...\n", execname)
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	if *infile == "" {
