@@ -57,7 +57,10 @@ func main() {
 
 	fieldstodelete := flag.Args()
 
-	writer.SetComment("goadifdelf\n")
+	if writer.SetComment("goadifdelf\n") != nil {
+		fmt.Fprint(os.Stderr, err)
+		return
+	}
 
 	// For deduping, use this filter API:
 	// reader := adifparser.NewDedupeADIFReader(fp)
