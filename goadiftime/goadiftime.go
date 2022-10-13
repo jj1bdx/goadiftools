@@ -141,6 +141,8 @@ func main() {
 		return
 	}
 
+	writer.SetComment("goadiftime\n")
+
 	reader := adifparser.NewADIFReader(fp)
 	for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
 		if err != nil {

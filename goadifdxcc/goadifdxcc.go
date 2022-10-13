@@ -67,6 +67,8 @@ func main() {
 	// Initialize godxcc
 	godxcc.LoadCty()
 
+	writer.SetComment("goadifdxcc\n")
+
 	reader := adifparser.NewADIFReader(fp)
 	for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
 		if err != nil {

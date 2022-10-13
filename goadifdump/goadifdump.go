@@ -60,6 +60,8 @@ func main() {
 		writer = adifparser.NewADIFWriter(os.Stdout)
 	}
 
+	writer.SetComment("goadifdelf\n")
+
 	// For deduping, use this filter API:
 	// reader := adifparser.NewDedupeADIFReader(fp)
 
