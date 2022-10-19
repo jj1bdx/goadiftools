@@ -79,7 +79,9 @@ func main() {
 		newrecord := []string{}
 		for i := range fields {
 			newvalue, err := record.GetValue(fields[i])
-			if err != nil {
+			if err == adifparser.ErrNoSuchField {
+				newvalue = ""
+			} else if err != nil {
 				fmt.Fprint(os.Stderr, err)
 				break
 			}
