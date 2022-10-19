@@ -4,6 +4,7 @@ Go tools for ADIF ADI files
 
 ## Tools
 
+* goadifcsv: output specified ADIF fields from the input ADIF records in CSV format
 * goadifdelf: delete specified ADIF fields from the input ADIF records
 * goadifdump: skeleton for further writing the code
 * goadifdxcc: add missing DXCC fields using godxcc
