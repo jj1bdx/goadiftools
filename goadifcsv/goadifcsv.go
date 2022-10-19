@@ -12,6 +12,7 @@ import (
 	"github.com/jj1bdx/adifparser"
 	"io"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -63,7 +64,7 @@ func main() {
 	// Write field names first
 	var fieldnames []string
 	for i := range fields {
-		fieldnames = append(fieldnames, fields[i])
+		fieldnames = append(fieldnames, strings.ToLower(fields[i]))
 	}
 	writer.Write(fieldnames)
 
@@ -81,7 +82,8 @@ func main() {
 		// Write a CSV record with chosen fields
 		newrecord := []string{}
 		for i := range fields {
-			newvalue, err := record.GetValue(fields[i])
+			newvalue, err := record.GetValue(
+				strings.ToLower(fields[i]))
 			if err == adifparser.ErrNoSuchField {
 				newvalue = ""
 			} else if err != nil {
