@@ -1,6 +1,6 @@
 // goadifdelf: remove specified ADIF fields
 // by Kenji Rikitake, JJ1BDX
-// Usage: goadifdump [-f infile] [-o outfile] field_names...
+// Usage: goadifdelf [-f infile] [-o outfile] field_names...
 
 package main
 

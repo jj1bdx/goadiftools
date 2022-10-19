@@ -1,6 +1,6 @@
 // goadifdxcc: add DXCC related fields
 // by Kenji Rikitake, JJ1BDX
-// Usage: goadifdump [-f infile] [-o outfile]
+// Usage: goadifdxcc [-f infile] [-o outfile]
 
 package main
 
