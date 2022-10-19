@@ -1,6 +1,7 @@
 // goadifcsv: pick up specified ADIF fields and output in CSV format
 // by Kenji Rikitake, JJ1BDX
 // Usage: goadifcsv [-f infile] [-o outfile] field_names...
+// Values of non-existing fields are set to empty strings
 
 package main
 
@@ -26,6 +27,8 @@ func main() {
 			"goadifcsv: remove specified ADIF fields")
 		fmt.Fprintf(flag.CommandLine.Output(),
 			"Usage: %s [-f infile] [-o outfile] field_names...\n", execname)
+		fmt.Fprintf(flag.CommandLine.Output(),
+			"Values of non-existing fields are set to empty strings\n")
 		flag.PrintDefaults()
 	}
 
