@@ -6,6 +6,7 @@ Go tools for ADIF ADI files
 
 * goadifcsv: output specified ADIF fields from the input ADIF records in CSV format
 * goadifdelf: delete specified ADIF fields from the input ADIF records
+* goadifdedupe: dump QSOs WITH deduping (eliminating dupe QSOs)
 * goadifdump: skeleton for further writing the code
 * goadifdxcc: add missing DXCC fields using godxcc
 * goadifstat: obtain QSO statistics
