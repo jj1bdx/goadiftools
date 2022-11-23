@@ -4,5 +4,5 @@ go 1.19
 
 require (
 	github.com/jj1bdx/adifparser v0.0.1
-	github.com/jj1bdx/godxcc v0.0.2
+	github.com/jj1bdx/godxcc v0.0.3
 )
