@@ -4,6 +4,7 @@ Go tools for ADIF ADI files
 
 ## Tools
 
+* goadifcab: output Cabrillo QSO log entries for given ADIF records
 * goadifcsv: output specified ADIF fields from the input ADIF records in CSV format
 * goadifdelf: delete specified ADIF fields from the input ADIF records
 * goadifdedupe: dump QSOs WITH deduping (eliminating dupe QSOs)
