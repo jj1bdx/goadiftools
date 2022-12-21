@@ -20,12 +20,12 @@ import (
 var ErrNoSuchField = adifparser.ErrNoSuchField
 
 var bandList = []string{
-	"2190M", "630M", "560M", "160M", "80M", "60M",
-	"40M", "30M", "20M", "17M", "15M", "12M",
-	"10M", "6M", "5M", "4M", "2M", "1.25M",
-	"70CM", "33CM", "23CM", "13CM", "9CM", "6CM",
-	"3CM", "1.25CM", "6MM", "4MM", "2.5MM", "2MM",
-	"1MM"}
+	"2190m", "630m", "560m", "160m", "80m", "60m",
+	"40m", "30m", "20m", "17m", "15m", "12m",
+	"10m", "6m", "5m", "4m", "2m", "1.25m",
+	"70cm", "33cm", "23cm", "13cm", "9cm", "6cm",
+	"3cm", "1.25cm", "6mm", "4mm", "2.5mm", "2mm",
+	"1mm"}
 
 var mapBand map[string]int
 var mapCountry map[string]int
@@ -54,8 +54,8 @@ func updateStatMaps(record adifparser.ADIFRecord) {
 	if err != nil && err != ErrNoSuchField {
 		fmt.Fprint(os.Stderr, err)
 	} else {
-		// Use uppercase for band names
-		key = strings.ToUpper(key)
+		// Use *lowercase* for band names
+		key = strings.ToLower(key)
 		_, exists = mapBand[key]
 		if exists {
 			mapBand[key]++
