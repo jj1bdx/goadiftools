@@ -10,6 +10,7 @@ Go tools for ADIF ADI files
 * goadifdedupe: dump QSOs WITH deduping (eliminating dupe QSOs)
 * goadifdump: skeleton for further writing the code
 * goadifdxcc: add missing DXCC fields using godxcc
+* goadifgrep: search specified ADIF field with a regex and output matched ADIF record
 * goadifstat: obtain QSO statistics
 * goadiftime: sort and filter QSOs by QSO\_DATE/TIME\_ON fields
 * noasciitostar: convert non-ASCII UTF-8 letters to "\*" of the same byte length
