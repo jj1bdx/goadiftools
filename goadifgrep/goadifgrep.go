@@ -73,6 +73,7 @@ func main() {
 	cliargs := flag.Args()
 	if len(cliargs) != 2 {
 		fmt.Fprint(os.Stderr, "Error: incorrect arguments\n")
+		flag.Usage()
 		return
 	}
 	var fieldname = strings.ToLower(cliargs[0])
