@@ -44,9 +44,15 @@ func main() {
 	var writer adifparser.ADIFWriter
 	var writefp *os.File
 	if *outfile != "" {
-		writefp, err = os.Create(*outfile)
-		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+		if _, err := os.Stat(*outfile); os.IsNotExist(err) {
+			// File does not exist: create it
+			writefp, err = os.Create(*outfile)
+			if err != nil {
+				fmt.Fprint(os.Stderr, err)
+				return
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: file %s already exists\n", *outfile)
 			return
 		}
 		writer = adifparser.NewADIFWriter(writefp)

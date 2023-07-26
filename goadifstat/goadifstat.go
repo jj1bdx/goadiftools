@@ -246,7 +246,17 @@ func main() {
 	var writefp *os.File
 	var writer *bufio.Writer
 	if *outfile != "" {
-		writefp, err = os.Create(*outfile)
+		if _, err := os.Stat(*outfile); os.IsNotExist(err) {
+			// File does not exist: create it
+			writefp, err = os.Create(*outfile)
+			if err != nil {
+				fmt.Fprint(os.Stderr, err)
+				return
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: file %s already exists\n", *outfile)
+			return
+		}
 		writer = bufio.NewWriter(writefp)
 	} else {
 		writefp = nil
