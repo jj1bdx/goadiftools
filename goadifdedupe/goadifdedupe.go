@@ -66,7 +66,7 @@ func main() {
 		writer = adifparser.NewADIFWriter(os.Stdout)
 	}
 
-	if writer.SetComment("goadifdelf\n") != nil {
+	if writer.SetComment("goadifdedupe\n") != nil {
 		fmt.Fprint(os.Stderr, err)
 		return
 	}
