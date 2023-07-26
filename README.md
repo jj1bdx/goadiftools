@@ -27,10 +27,14 @@ go mod tidy
 
 Do `./buildall.sh`
 
-## Required library
+## Required libraries
 
 https://github.com/jj1bdx/adifparser
 https://github.com/jj1bdx/godxcc
+
+## Usage examples
+
+See the contents in `examples/` for the usage examples.
 
 ## License
 
