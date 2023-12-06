@@ -1,7 +1,7 @@
 // goadifstat: check statistics of ADIF ADI files
 // by Kenji Rikitake, JJ1BDX
 // Usage: goadifstat [-f infile] [-o outfile] -q query type
-// Valid query types: bands, country, dxcc, gridsquare, modes, nqso, submodes
+// Valid query types: bands, country, cqz, dxcc, gridsquare, modes, nqso, submodes
 
 package main
 
@@ -29,6 +29,7 @@ var bandList = []string{
 
 var mapBand map[string]int
 var mapCountry map[string]int
+var mapCqz map[int]bool
 var mapDxcc map[int]bool
 var mapGrid map[string]bool
 var mapMode map[string]int
@@ -37,6 +38,7 @@ var mapSubmode map[string]int
 func initStatMaps() {
 	mapBand = make(map[string]int)
 	mapCountry = make(map[string]int)
+	mapCqz = make(map[int]bool)
 	mapDxcc = make(map[int]bool)
 	mapGrid = make(map[string]bool)
 	mapMode = make(map[string]int)
@@ -80,6 +82,23 @@ func updateStatMaps(record adifparser.ADIFRecord) {
 			mapCountry[key]++
 		} else {
 			mapCountry[key] = 1
+		}
+	}
+
+	// cqz
+	key, err = record.GetValue("cqz")
+	if err != nil && err != ErrNoSuchField {
+		fmt.Fprint(os.Stderr, err)
+	} else if key != "" {
+		// Cqz values are integers
+		keynum, err = strconv.Atoi(key)
+		if err != nil && err != ErrNoSuchField {
+			fmt.Fprint(os.Stderr, err)
+		} else {
+			_, exists = mapCqz[keynum]
+			if !exists {
+				mapCqz[keynum] = true
+			}
 		}
 	}
 
@@ -166,6 +185,16 @@ func statOutput(query *string, writer *bufio.Writer,
 			fmt.Fprintf(writer, "%s: %d\n", k, mapCountry[k])
 		}
 		fmt.Fprintln(writer, "(TOTAL):", reader.RecordCount())
+	case *query == "cqz":
+		keys := make([]int, 0, len(mapCqz))
+		for k := range mapCqz {
+			keys = append(keys, k)
+		}
+		sort.Ints(keys)
+		for _, n := range keys {
+			fmt.Fprintf(writer, "%d ", n)
+		}
+		fmt.Fprintf(writer, "\n")
 	case *query == "dxcc":
 		keys := make([]int, 0, len(mapDxcc))
 		for k := range mapDxcc {
@@ -227,7 +256,7 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(),
 			"Usage: %s [-f infile] [-o outfile] -q query type\n", execname)
 		fmt.Fprintln(flag.CommandLine.Output(),
-			"Valid query types: bands, country, dxcc, gridsquare, modes, nqso, submodes")
+			"Valid query types: bands, country, cqz, dxcc, gridsquare, modes, nqso, submodes")
 		flag.PrintDefaults()
 	}
 
