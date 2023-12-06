@@ -10,6 +10,7 @@ Go tools for ADIF ADI files
 * goadifdedupe: dump QSOs WITH deduping (eliminating dupe QSOs)
 * goadifdump: skeleton for further writing the code
 * goadifdxcc: add missing DXCC fields using godxcc
+* goadifdxcccl: add missing DXCC fields using gocldb
 * goadifgrep: search specified ADIF field with a regex and output matched ADIF record
 * goadifstat: obtain QSO statistics
 * goadiftime: sort and filter QSOs by QSO\_DATE/TIME\_ON fields
@@ -29,8 +30,9 @@ Do `./buildall.sh`
 
 ## Required libraries
 
-https://github.com/jj1bdx/adifparser
-https://github.com/jj1bdx/godxcc
+* https://github.com/jj1bdx/adifparser
+* https://github.com/jj1bdx/gocldb
+* https://github.com/jj1bdx/godxcc
 
 ## Usage examples
 
