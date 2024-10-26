@@ -158,8 +158,12 @@ func main() {
 				record.SetValue("country", result.Name)
 			}
 			_, err = record.GetValue("cqz")
+			// Do not set CQZ field if the obtained value is zero
+			// CQZ value must be a positive integer
 			if err == adifparser.ErrNoSuchField {
-				record.SetValue("cqz", strconv.Itoa(int(result.Cqz)))
+				if result.Cqz > 0 {
+					record.SetValue("cqz", strconv.Itoa(int(result.Cqz)))
+				}
 			}
 			_, err = record.GetValue("cont")
 			if err == adifparser.ErrNoSuchField {
