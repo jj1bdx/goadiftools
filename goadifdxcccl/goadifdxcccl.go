@@ -7,13 +7,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/jj1bdx/adifparser"
-	"github.com/jj1bdx/gocldb"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jj1bdx/adifparser"
+	"github.com/jj1bdx/gocldb"
 )
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "\n")
 		fmt.Fprintf(flag.CommandLine.Output(),
 			"How goadifdxcc works:\n"+
-				"For each record, fetch the correspoding local Club Log database data\n"+
+				"For each record, fetch the corresponding local Club Log database data\n"+
 				"with the content of the ADIF field 'call'.\n"+
 				"Then for each ADIF field of country, cqz, cont, dxcc:\n"+
 				"fill in the field with the DXCC database data if the field is empty.\n")
