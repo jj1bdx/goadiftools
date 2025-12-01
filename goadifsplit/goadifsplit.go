@@ -20,7 +20,8 @@ import (
 )
 
 func numtosuffix(n uint, suflen uint) string {
-	nstr := strconv.FormatUint(uint64(n), 36)
+	// Use decimal digits only
+	nstr := strconv.FormatUint(uint64(n), 10)
 	nlen := len(nstr)
 	if nlen < int(suflen) {
 		addlen := int(suflen) - nlen
