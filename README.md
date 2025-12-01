@@ -12,6 +12,7 @@ Go tools for ADIF ADI files
 * goadifdxcc: add missing DXCC fields using godxcc
 * goadifdxcccl: add missing DXCC fields using gocldb
 * goadifgrep: search specified ADIF field with a regex and output matched ADIF record
+* goadifsplit: split an ADIF file into multiple files
 * goadifstat: obtain QSO statistics
 * goadiftime: sort and filter QSOs by QSO\_DATE/TIME\_ON fields
 * noasciitostar: convert non-ASCII UTF-8 letters to "\*" of the same byte length
