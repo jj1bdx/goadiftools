@@ -23,8 +23,13 @@ func numtosuffix(n uint, suflen uint) string {
 	// Use decimal digits only
 	nstr := strconv.FormatUint(uint64(n), 10)
 	nlen := len(nstr)
-	if nlen < int(suflen) {
-		addlen := int(suflen) - nlen
+	slen := int(suflen)
+	if nlen > slen {
+		fmt.Fprintln(os.Stderr, "Error: numtosuffix length overflow")
+		os.Exit(1)
+	}
+	if nlen < slen {
+		addlen := slen - nlen
 		outstr := strings.Repeat("0", addlen) + nstr
 		return outstr
 	} else {
@@ -48,13 +53,18 @@ func main() {
 
 	flag.Usage = func() {
 		execname := os.Args[0]
-		fmt.Fprintln(flag.CommandLine.Output(), "goadifsplit: split an ADIF file into multiple files\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "goadifsplit: split an ADIF file into multiple files\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(),
 			"Usage: %s [-f infile] [-l lines] [-a length] [-p prefix] [-e extension]\n", execname)
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
+
+	if *filelines == 0 {
+		fmt.Fprintln(os.Stderr, "Error: lines per output file must be a positive number")
+		return
+	}
 
 	if *infile == "" {
 		fp = os.Stdin
@@ -111,7 +121,7 @@ func main() {
 			// Output the record
 			writer.WriteRecord(record)
 			linecount = linecount + 1
-			if linecount == maxlines {
+			if linecount >= maxlines {
 				break // break the loop
 			}
 		}
