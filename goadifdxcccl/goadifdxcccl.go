@@ -78,7 +78,7 @@ func main() {
 	// Initialize gocldb
 	gocldb.LoadCtyXml()
 	// Disable debug mode logging of gocldb
-	gocldb.DebugLogger.SetOutput(io.Discard)
+	gocldb.SetDebugOutput(io.Discard)
 
 	if writer.SetComment("goadifdxcccl\n") != nil {
 		fmt.Fprint(os.Stderr, err)
@@ -168,7 +168,9 @@ func main() {
 			}
 			_, err = record.GetValue("cont")
 			if err == adifparser.ErrNoSuchField {
-				record.SetValue("cont", result.Cont)
+				if len(result.Cont) > 0 {
+					record.SetValue("cont", result.Cont)
+				}
 			}
 			_, err = record.GetValue("dxcc")
 			if err == adifparser.ErrNoSuchField {
