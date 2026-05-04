@@ -3,6 +3,12 @@
 // Usage: goadifsplit [-f infile] [-l lines] [-a suffix_length]
 //                    [-p prefix] [-e extension]
 //
+// -p and -e are concatenated literally into the output path:
+//   <prefix><zero-padded-index>.<extension>
+// They are written by the invoking user, so a prefix containing path
+// separators ("foo/", "../bar/") writes the split files into those
+// directories. Treat -p / -e as paths under your control.
+//
 // Coding convention:
 // Use reader for reading each record (with ADIFReader)
 // Use writer for writing each record (with ADIFWriter)
@@ -10,6 +16,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/jj1bdx/adifparser"
@@ -19,26 +26,27 @@ import (
 	"strings"
 )
 
-func numtosuffix(n uint, suflen uint) string {
+func numtosuffix(n uint, suflen uint) (string, error) {
 	// Use decimal digits only
 	nstr := strconv.FormatUint(uint64(n), 10)
 	nlen := len(nstr)
 	slen := int(suflen)
 	if nlen > slen {
-		fmt.Fprintln(os.Stderr, "Error: numtosuffix length overflow")
-		os.Exit(1)
+		return "", errors.New("numtosuffix length overflow")
 	}
 	if nlen < slen {
 		addlen := slen - nlen
-		outstr := strings.Repeat("0", addlen) + nstr
-		return outstr
-	} else {
-		return nstr
+		return strings.Repeat("0", addlen) + nstr, nil
 	}
+	return nstr, nil
 }
 
-func genfilename(n uint, suflen uint, prefix string, extension string) string {
-	return prefix + numtosuffix(n, suflen) + "." + extension
+func genfilename(n uint, suflen uint, prefix string, extension string) (string, error) {
+	suffix, err := numtosuffix(n, suflen)
+	if err != nil {
+		return "", err
+	}
+	return prefix + suffix + "." + extension, nil
 }
 
 func main() {
@@ -63,7 +71,7 @@ func main() {
 
 	if *filelines == 0 {
 		fmt.Fprintln(os.Stderr, "Error: lines per output file must be a positive number")
-		return
+		os.Exit(2)
 	}
 
 	if *infile == "" {
@@ -71,67 +79,73 @@ func main() {
 	} else {
 		fp, err = os.Open(*infile)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer fp.Close()
 	}
 
 	reader := adifparser.NewADIFReader(fp)
 
-	var outfilenum uint
-	outfilenum = 0
+	var outfilenum uint = 0
 
-	var writer adifparser.ADIFWriter
-	var writefp *os.File
-
-	endoffile := false
-
-	for !endoffile {
-		var outfilename = genfilename(outfilenum, *indexlength, *outprefix, *extension)
-		if _, err := os.Stat(outfilename); os.IsNotExist(err) {
-			// File does not exist: create it
-			writefp, err = os.Create(outfilename)
-			if err != nil {
-				fmt.Fprint(os.Stderr, err)
-				return
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: file %s already exists\n", outfilename)
-			return
+	// Peek at the first record so we can avoid creating an empty
+	// trailing file when the input ends on an exact filelines boundary.
+	pendingRecord, pendingErr := reader.ReadRecord()
+	for pendingRecord != nil {
+		outfilename, gerr := genfilename(outfilenum, *indexlength, *outprefix, *extension)
+		if gerr != nil {
+			fmt.Fprintln(os.Stderr, gerr)
+			os.Exit(1)
 		}
-		writer = adifparser.NewADIFWriter(writefp)
+		// O_EXCL: atomic create-if-absent that refuses to follow a
+		// final-component symlink. Replaces the per-file Stat/Create
+		// TOCTOU race, which is wider here because of the loop.
+		writefp, oerr := os.OpenFile(outfilename,
+			os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if oerr != nil {
+			fmt.Fprintln(os.Stderr, oerr)
+			os.Exit(1)
+		}
+		writer := adifparser.NewADIFWriter(writefp)
 
 		comment := fmt.Sprintf("goadifsplit file %d\n", outfilenum)
-		if writer.SetComment(comment) != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+		if cerr := writer.SetComment(comment); cerr != nil {
+			fmt.Fprintln(os.Stderr, cerr)
+			writefp.Close()
+			os.Exit(1)
 		}
 
 		maxlines := int(*filelines)
 		linecount := 0
 
-		for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
-			if err != nil {
-				if err != io.EOF {
-					fmt.Fprint(os.Stderr, err)
-				}
-				endoffile = true
-				break // when io.EOF break the loop!
+		// Drain the pending record from the previous outer iteration,
+		// then keep reading until we hit maxlines or EOF.
+		for pendingRecord != nil && linecount < maxlines {
+			if werr := writer.WriteRecord(pendingRecord); werr != nil {
+				fmt.Fprintln(os.Stderr, werr)
+				writefp.Close()
+				os.Exit(1)
 			}
-			// Output the record
-			writer.WriteRecord(record)
-			linecount = linecount + 1
-			if linecount >= maxlines {
-				break // break the loop
-			}
+			linecount++
+			pendingRecord, pendingErr = reader.ReadRecord()
 		}
 
-		// Flush and close the output
-		writer.Flush()
-		if writefp != os.Stdout {
+		if ferr := writer.Flush(); ferr != nil {
+			fmt.Fprintln(os.Stderr, ferr)
 			writefp.Close()
+			os.Exit(1)
 		}
-		outfilenum = outfilenum + 1
+		if cerr := writefp.Close(); cerr != nil {
+			fmt.Fprintln(os.Stderr, cerr)
+			os.Exit(1)
+		}
+		outfilenum++
+	}
+
+	if pendingErr != nil && pendingErr != io.EOF {
+		fmt.Fprintln(os.Stderr, pendingErr)
+		os.Exit(1)
 	}
 
 	fmt.Fprintf(os.Stderr, "Total records: %d\n", reader.RecordCount())

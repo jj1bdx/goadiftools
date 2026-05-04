@@ -88,12 +88,14 @@ func updateStatMaps(record adifparser.ADIFRecord) {
 	// cqz
 	key, err = record.GetValue("cqz")
 	if err != nil && err != ErrNoSuchField {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 	} else if key != "" {
-		// Cqz values are integers
+		// Cqz values are integers. strconv.Atoi only ever returns its
+		// own *NumError, never adifparser.ErrNoSuchField, so a plain
+		// err != nil is sufficient.
 		keynum, err = strconv.Atoi(key)
-		if err != nil && err != ErrNoSuchField {
-			fmt.Fprint(os.Stderr, err)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		} else {
 			_, exists = mapCqz[keynum]
 			if !exists {
@@ -105,12 +107,12 @@ func updateStatMaps(record adifparser.ADIFRecord) {
 	// dxcc
 	key, err = record.GetValue("dxcc")
 	if err != nil && err != ErrNoSuchField {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 	} else if key != "" {
-		// DXCC values are integers
+		// DXCC values are integers. See cqz comment above re: err check.
 		keynum, err = strconv.Atoi(key)
-		if err != nil && err != ErrNoSuchField {
-			fmt.Fprint(os.Stderr, err)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		} else {
 			_, exists = mapDxcc[keynum]
 			if !exists {
@@ -267,25 +269,24 @@ func main() {
 	} else {
 		fp, err = os.Open(*infile)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer fp.Close()
 	}
 
 	var writefp *os.File
 	var writer *bufio.Writer
 	if *outfile != "" {
-		if _, err := os.Stat(*outfile); os.IsNotExist(err) {
-			// File does not exist: create it
-			writefp, err = os.Create(*outfile)
-			if err != nil {
-				fmt.Fprint(os.Stderr, err)
-				return
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: file %s already exists\n", *outfile)
-			return
+		// O_EXCL: atomic create-if-absent that refuses to follow a
+		// final-component symlink. Replaces the Stat/Create TOCTOU.
+		writefp, err = os.OpenFile(*outfile,
+			os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer writefp.Close()
 		writer = bufio.NewWriter(writefp)
 	} else {
 		writefp = nil
@@ -298,7 +299,7 @@ func main() {
 	for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
 		if err != nil {
 			if err != io.EOF {
-				fmt.Fprint(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, err)
 			}
 			break // when io.EOF break the loop!
 		}
@@ -307,10 +308,9 @@ func main() {
 
 	statOutput(query, writer, reader)
 
-	// Flush and close output here
-	writer.Flush()
-	if writefp != nil {
-		writefp.Close()
+	if ferr := writer.Flush(); ferr != nil {
+		fmt.Fprintln(os.Stderr, ferr)
+		os.Exit(1)
 	}
 
 }

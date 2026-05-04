@@ -44,26 +44,25 @@ func main() {
 	} else {
 		fp, err = os.Open(*infile)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer fp.Close()
 	}
 	reader := bufio.NewReader(fp)
 
 	var writefp *os.File
 	var writer *bufio.Writer
 	if *outfile != "" {
-		if _, err := os.Stat(*outfile); os.IsNotExist(err) {
-			// File does not exist: create it
-			writefp, err = os.Create(*outfile)
-			if err != nil {
-				fmt.Fprint(os.Stderr, err)
-				return
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: file %s already exists\n", *outfile)
-			return
+		// O_EXCL: atomic create-if-absent that refuses to follow a
+		// final-component symlink. Replaces the Stat/Create TOCTOU.
+		writefp, err = os.OpenFile(*outfile,
+			os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer writefp.Close()
 		writer = bufio.NewWriter(writefp)
 	} else {
 		writefp = nil
@@ -75,22 +74,21 @@ func main() {
 			for i := 0; i < n; i++ {
 				// For non-ASCII letter,
 				// convert it to a star of the same byte length
-				err := writer.WriteByte('*')
-				if err != nil {
-					fmt.Fprint(os.Stderr, err)
+				if werr := writer.WriteByte('*'); werr != nil {
+					fmt.Fprintln(os.Stderr, werr)
+					os.Exit(1)
 				}
 			}
 		} else {
-			_, err := writer.WriteRune(r)
-			if err != nil {
-				fmt.Fprint(os.Stderr, err)
+			if _, werr := writer.WriteRune(r); werr != nil {
+				fmt.Fprintln(os.Stderr, werr)
+				os.Exit(1)
 			}
 		}
 	}
 
-	// Flush and close the output
-	writer.Flush()
-	if writefp != os.Stdout {
-		writefp.Close()
+	if ferr := writer.Flush(); ferr != nil {
+		fmt.Fprintln(os.Stderr, ferr)
+		os.Exit(1)
 	}
 }

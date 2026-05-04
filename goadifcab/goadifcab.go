@@ -57,25 +57,25 @@ func main() {
 	} else {
 		fp, err = os.Open(*infile)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer fp.Close()
 	}
 
 	var writer io.Writer
 	var writefp *os.File
 	if *outfile != "" {
-		if _, err := os.Stat(*outfile); os.IsNotExist(err) {
-			// File does not exist: create it
-			writefp, err = os.Create(*outfile)
-			if err != nil {
-				fmt.Fprint(os.Stderr, err)
-				return
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: file %s already exists\n", *outfile)
-			return
+		// O_EXCL refuses to follow a final-component symlink and fails
+		// atomically if the file already exists, eliminating the
+		// Stat/Create TOCTOU race and the IsNotExist misclassification.
+		writefp, err = os.OpenFile(*outfile,
+			os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer writefp.Close()
 		writer = io.Writer(writefp)
 	} else {
 		writefp = nil
@@ -85,11 +85,12 @@ func main() {
 	// For deduping, use this filter API:
 	// reader := adifparser.NewDedupeADIFReader(fp)
 
+	dropped := 0
 	reader := adifparser.NewADIFReader(fp)
 	for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
 		if err != nil {
 			if err != io.EOF {
-				fmt.Fprint(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, err)
 			}
 			break // when io.EOF break the loop!
 		}
@@ -97,25 +98,25 @@ func main() {
 		// Get station_callsign entry
 		station_callsign, err := record.GetValue("station_callsign")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get call entry
 		call, err := record.GetValue("call")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get band entry
 		band, err := record.GetValue("band")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get band entry
 		mode, err := record.GetValue("mode")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get freq entry
@@ -124,69 +125,81 @@ func main() {
 		if err == adifparser.ErrNoSuchField {
 			freq = ""
 		} else if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get time_on and qso_date entries
 		adifdate, err := record.GetValue("qso_date")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		adiftime, err := record.GetValue("time_on")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get rst_sent entry
 		rst_sent, err := record.GetValue("rst_sent")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get rst_rcvd entry
 		rst_rcvd, err := record.GetValue("rst_rcvd")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get stx_string entry
 		stx_string, err := record.GetValue("stx_string")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Get srx_string entry
 		srx_string, err := record.GetValue("srx_string")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+
+		// Validate qso_date / time_on lengths before slicing.
+		// ADIF requires QSO_DATE to be 8 digits (YYYYMMDD) and
+		// TIME_ON to be 4 or 6 digits (HHMM or HHMMSS); a malformed
+		// or truncated record would otherwise panic the process.
+		if len(adifdate) < 8 || len(adiftime) < 4 {
+			fmt.Fprintf(os.Stderr,
+				"malformed qso_date/time_on for %s: %q %q\n",
+				call, adifdate, adiftime)
+			dropped++
 			continue
 		}
 
 		// Convert qso time to partial data strings
 		adifyear, err := strconv.Atoi(adifdate[0:4])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		adifmonth, err := strconv.Atoi(adifdate[4:6])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		adifday, err := strconv.Atoi(adifdate[6:8])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		adifhour, err := strconv.Atoi(adiftime[0:2])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		adifminute, err := strconv.Atoi(adiftime[2:4])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 
@@ -207,13 +220,16 @@ func main() {
 		case band == "160m":
 			freqnum = 1800
 		default:
-			fmt.Fprint(os.Stderr, "Unknown band\n")
+			fmt.Fprintf(os.Stderr,
+				"unknown band %q for %s on %s %s — record dropped\n",
+				band, call, adifdate, adiftime)
+			dropped++
 			continue
 		}
 		if freq != "" {
 			freqval, err := strconv.ParseFloat(freq, 64)
 			if err != nil {
-				fmt.Fprint(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, err)
 				continue
 			}
 			freqnum = uint(freqval * 1000)
@@ -236,22 +252,42 @@ func main() {
 		case mode == "MFSK":
 			cabmode = "DG"
 		default:
-			fmt.Fprint(os.Stderr, "Unknown mode\n")
+			fmt.Fprintf(os.Stderr,
+				"unknown mode %q for %s on %s %s — record dropped\n",
+				mode, call, adifdate, adiftime)
+			dropped++
 			continue
 		}
 
 		// print output record
-		fmt.Fprintf(writer, "QSO: %5d %s ", freqnum, cabmode)
-		fmt.Fprintf(writer, "%04d-%02d-%02d %02d%02d ",
-			adifyear, adifmonth, adifday, adifhour, adifminute)
-		fmt.Fprintf(writer, "%-13s %-3s %-6s %-13s %-3s %-6s\n",
+		if _, werr := fmt.Fprintf(writer, "QSO: %5d %s ", freqnum, cabmode); werr != nil {
+			fmt.Fprintln(os.Stderr, werr)
+			os.Exit(1)
+		}
+		if _, werr := fmt.Fprintf(writer, "%04d-%02d-%02d %02d%02d ",
+			adifyear, adifmonth, adifday, adifhour, adifminute); werr != nil {
+			fmt.Fprintln(os.Stderr, werr)
+			os.Exit(1)
+		}
+		if _, werr := fmt.Fprintf(writer, "%-13s %-3s %-6s %-13s %-3s %-6s\n",
 			station_callsign, rst_sent, stx_string,
-			call, rst_rcvd, srx_string)
+			call, rst_rcvd, srx_string); werr != nil {
+			fmt.Fprintln(os.Stderr, werr)
+			os.Exit(1)
+		}
 	}
 
-	// Flush and close the output
-	// writer.Flush()
-	if writefp != os.Stdout {
-		writefp.Close()
+	// writer is an unbuffered io.Writer wrapping the *os.File, so no
+	// userspace flush is needed. The defer above closes writefp.
+	_ = writefp
+
+	if dropped > 0 {
+		// A Cabrillo log is intended as the official contest submission.
+		// Silent QSO loss is worse than an explicit failure: signal the
+		// operator that the source data needs cleaning before submission.
+		fmt.Fprintf(os.Stderr,
+			"goadifcab: %d record(s) dropped — submission is incomplete\n",
+			dropped)
+		os.Exit(2)
 	}
 }

@@ -95,25 +95,24 @@ func main() {
 	} else {
 		fp, err = os.Open(*infile)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer fp.Close()
 	}
 
 	var writer adifparser.ADIFWriter
 	var writefp *os.File
 	if *outfile != "" {
-		if _, err := os.Stat(*outfile); os.IsNotExist(err) {
-			// File does not exist: create it
-			writefp, err = os.Create(*outfile)
-			if err != nil {
-				fmt.Fprint(os.Stderr, err)
-				return
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: file %s already exists\n", *outfile)
-			return
+		// O_EXCL: atomic create-if-absent that refuses to follow a
+		// final-component symlink. Replaces the Stat/Create TOCTOU.
+		writefp, err = os.OpenFile(*outfile,
+			os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer writefp.Close()
 		writer = adifparser.NewADIFWriter(writefp)
 	} else {
 		writefp = nil
@@ -126,8 +125,8 @@ func main() {
 	if starttimeexists {
 		parsedStartTime, err := time.Parse(time.RFC3339, *starttime)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 		startTime = parsedStartTime.UTC()
 	}
@@ -136,70 +135,88 @@ func main() {
 	if endtimeexists {
 		parsedEndTime, err := time.Parse(time.RFC3339, *endtime)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 		endTime = parsedEndTime.UTC()
 	}
 	if starttimeexists && endtimeexists &&
 		startTime.After(endTime) {
-		fmt.Fprint(os.Stderr, errors.New("starttime is after endtime"))
-		return
+		fmt.Fprintln(os.Stderr, errors.New("starttime is after endtime"))
+		os.Exit(2)
 	}
 
-	if writer.SetComment("goadiftime\n") != nil {
-		fmt.Fprint(os.Stderr, err)
-		return
+	if cerr := writer.SetComment("goadiftime\n"); cerr != nil {
+		fmt.Fprintln(os.Stderr, cerr)
+		os.Exit(1)
 	}
 
 	reader := adifparser.NewADIFReader(fp)
 	for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
 		if err != nil {
 			if err != io.EOF {
-				fmt.Fprint(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, err)
 			}
 			break // when io.EOF break the loop!
 		}
 
 		adifdate, err := record.GetValue("qso_date")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
 		adiftime, err := record.GetValue("time_on")
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+
+		// Validate qso_date / time_on lengths before slicing to avoid
+		// an index-out-of-range panic on a truncated/malformed record.
+		if len(adifdate) < 8 || len(adiftime) < 4 {
+			fmt.Fprintf(os.Stderr,
+				"malformed qso_date/time_on: %q %q\n",
+				adifdate, adiftime)
+			continue
 		}
 
 		adifyear, err := strconv.Atoi(adifdate[0:4])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
 		adifmonth, err := strconv.Atoi(adifdate[4:6])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
 		adifday, err := strconv.Atoi(adifdate[6:8])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
 		adifhour, err := strconv.Atoi(adiftime[0:2])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
 		adifminute, err := strconv.Atoi(adiftime[2:4])
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
+		// Seconds are optional (HHMM or HHMMSS). The original ">4"
+		// guard admitted len==5 and panicked at adiftime[4:6]; require
+		// the full HHMMSS form, and surface a parse error rather than
+		// silently zeroing — silent timestamp corruption is a
+		// correctness hazard for a time-filter tool.
 		adifsecond := 0
-		if len(adiftime) > 4 {
+		if len(adiftime) >= 6 {
 			adifsecond, err = strconv.Atoi(adiftime[4:6])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				continue
+			}
 		}
 		recordtime := time.Date(
 			adifyear, time.Month(adifmonth), adifday,
@@ -211,8 +228,18 @@ func main() {
 		passend := !endtimeexists ||
 			(recordtime.Before(endTime) || recordtime.Equal(endTime))
 		if passstart && passend {
-			recordandtime := recordWithTime{recordtime, record}
-			records = append(records, recordandtime)
+			if nosorting {
+				// Streaming fast path: when the user opts out of
+				// sorting, write directly and never accumulate the
+				// slice — bounded memory regardless of input size.
+				if werr := writer.WriteRecord(record); werr != nil {
+					fmt.Fprintln(os.Stderr, werr)
+					os.Exit(1)
+				}
+			} else {
+				recordandtime := recordWithTime{recordtime, record}
+				records = append(records, recordandtime)
+			}
 		}
 	}
 
@@ -228,16 +255,17 @@ func main() {
 					return records[i].date.Before(records[j].date)
 				})
 		}
+		for i := range records {
+			if werr := writer.WriteRecord(records[i].record); werr != nil {
+				fmt.Fprintln(os.Stderr, werr)
+				os.Exit(1)
+			}
+		}
 	}
 
-	for i := range records {
-		writer.WriteRecord(records[i].record)
-	}
-
-	// Flush and close output here
-	writer.Flush()
-	if writefp != os.Stdout {
-		writefp.Close()
+	if ferr := writer.Flush(); ferr != nil {
+		fmt.Fprintln(os.Stderr, ferr)
+		os.Exit(1)
 	}
 
 }

@@ -40,25 +40,24 @@ func main() {
 	} else {
 		fp, err = os.Open(*infile)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer fp.Close()
 	}
 
 	var writer *csv.Writer
 	var writefp *os.File
 	if *outfile != "" {
-		if _, err := os.Stat(*outfile); os.IsNotExist(err) {
-			// File does not exist: create it
-			writefp, err = os.Create(*outfile)
-			if err != nil {
-				fmt.Fprint(os.Stderr, err)
-				return
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: file %s already exists\n", *outfile)
-			return
+		// O_EXCL: atomic create-if-absent that refuses to follow a
+		// final-component symlink. Replaces the Stat/Create TOCTOU.
+		writefp, err = os.OpenFile(*outfile,
+			os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+		defer writefp.Close()
 		writer = csv.NewWriter(writefp)
 	} else {
 		writefp = nil
@@ -72,7 +71,10 @@ func main() {
 	for i := range fields {
 		fieldnames = append(fieldnames, strings.ToLower(fields[i]))
 	}
-	writer.Write(fieldnames)
+	if werr := writer.Write(fieldnames); werr != nil {
+		fmt.Fprintln(os.Stderr, werr)
+		os.Exit(1)
+	}
 
 	// For deduping, use this filter API:
 	// reader := adifparser.NewDedupeADIFReader(fp)
@@ -81,7 +83,7 @@ func main() {
 	for record, err := reader.ReadRecord(); record != nil || err != nil; record, err = reader.ReadRecord() {
 		if err != nil {
 			if err != io.EOF {
-				fmt.Fprint(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, err)
 			}
 			break // when io.EOF break the loop!
 		}
@@ -93,18 +95,23 @@ func main() {
 			if err == adifparser.ErrNoSuchField {
 				newvalue = ""
 			} else if err != nil {
-				fmt.Fprint(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, err)
 				break
 			}
 			newrecord = append(newrecord, newvalue)
 		}
-		writer.Write(newrecord)
+		if werr := writer.Write(newrecord); werr != nil {
+			fmt.Fprintln(os.Stderr, werr)
+			os.Exit(1)
+		}
 
 	}
 
-	// Flush and close the output
+	// Flush and surface any deferred write errors so shell pipelines
+	// observe a non-zero exit on full disk / broken pipe.
 	writer.Flush()
-	if writefp != os.Stdout {
-		writefp.Close()
+	if werr := writer.Error(); werr != nil {
+		fmt.Fprintln(os.Stderr, werr)
+		os.Exit(1)
 	}
 }
