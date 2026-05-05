@@ -42,3 +42,7 @@ See the contents in `examples/` for the usage examples.
 ## License
 
 BSD 2-clause License
+
+## Usage of AI
+
+* Claude Code is used to verify and fix the vulnerabilities of the code.
